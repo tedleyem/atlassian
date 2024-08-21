@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: jira
+  name: jira
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: jira
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: jira
+    spec:
+      containers:
+        - env:
+            - name: ATL_DB_DRIVER
+              value: com.mysql.cj.jdbc.Driver
+            - name: ATL_DB_SCHEMA_NAME
+              value: jiradb
+            - name: ATL_JDBC_PASSWORD
+            - name: ATL_JDBC_USER
+              value: db_user
+            - name: ATL_PROXY_NAME
+            - name: ATL_PROXY_PORT
+              value: "443"
+            - name: ATL_TOMCAT_CONTEXTPATH
+              value: jira
+            - name: ATL_TOMCAT_SCHEME
+              value: https
+            - name: ATL_TOMCAT_SECURE
+              value: "false"
+            - name: CERT_NAME
+              value: default
+            - name: JVM_MAXIMUM_MEMORY
+              value: 4096m
+            - name: JVM_MINIMUM_MEMORY
+              value: 2048m
+            - name: VIRTUAL_HOST
+            - name: VIRTUAL_PATH
+              value: /jira
+            - name: VIRTUAL_PORT
+              value: "8080"
+          image: atlassian/jira-core:10.0.0-RC-jdk17
+          name: jira
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/atlassian/jira
+              name: jira-data
+      restartPolicy: Always
+      volumes:
+        - name: jira-data
+          persistentVolumeClaim:
+            claimName: jira-data

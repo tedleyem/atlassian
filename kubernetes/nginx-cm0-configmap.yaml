@@ -1,0 +1,155 @@
+apiVersion: v1
+data:
+  README.md: |-
+    # Atlassian Docker project
+
+    ### Docker Source files:
+    - [atlassian/jira-core](https://hub.docker.com/r/atlassian/jira-core)
+    - [atlassian/confluence](https://hub.docker.com/r/atlassian/confluence)
+    - [atlassian/bitbucket-server](https://hub.docker.com/r/atlassian/bitbucket)
+    - [nginx](https://hub.docker.com/_/nginx)
+    - [postgres](https://hub.docker.com/_/postgres)
+
+
+    ### Deploy
+
+    **Clone the project**
+    ```
+    $ git clone https://github.com/tedleyem/atlassian
+    ```
+
+    **Set environment variables**
+    ```
+    $ export DOMAIN=example.com
+     ```
+
+    **Run docker compose**
+    ```
+    $ docker-compose -p atlassian up
+    ```
+
+    **Set `DNS` according to the above `DOMAIN` value, on somewhere that you want to connect to host of `docker-compose`**
+
+    ```
+    $ vim /etc/hosts
+            127.0.0.1 jira.example.com www.jira.example.com
+            127.0.0.1 wiki.example.com www.wiki.example.com
+            127.0.0.1 code.example.com www.code.example.com
+    ```
+    Replace `127.0.0.1` with IP of host that `docker-compose` command run on it.
+
+    **Create Databases**
+    ```
+    $ docker exec -it atlassian_database_1  psql -U postgres
+           postgres=# CREATE DATABASE jira;
+           postgres=# CREATE DATABASE wiki;
+           postgres=# CREATE DATABASE bitbucket;
+           postgres=# \l
+           postgres-# \q
+    ```
+
+    **Browse Atlassian products**
+    ```
+    http://jira.example.com
+    http://wiki.example.com
+    http://code.example.com
+    ```
+
+    Notes:
+    Persistent data is saved on docker volumes
+    ```
+    $ docker volume ls
+
+    Example:
+
+    local               atlassian_bitbucket-data
+    local               atlassian_confluence-data
+    local               atlassian_jira-data
+    local               atlassian_database-data
+    ```
+  docker-compose.yml: |-
+    services:
+      jira:
+        image: atlassian/jira-core:10.0.0-RC-jdk17
+        restart: always
+        expose:
+          - 8080
+        environment:
+          - VIRTUAL_HOST=${BASE_FQDN}
+          - VIRTUAL_PATH=/jira
+          - VIRTUAL_PORT=8080
+          - CERT_NAME=default
+          - ATL_PROXY_NAME=${BASE_FQDN}
+          - ATL_PROXY_PORT=443
+          - ATL_TOMCAT_SCHEME=https
+          - ATL_TOMCAT_SECURE=false
+          - ATL_TOMCAT_CONTEXTPATH=jira
+          - ATL_DB_DRIVER=com.mysql.cj.jdbc.Driver
+          - ATL_DB_SCHEMA_NAME=jiradb
+          - ATL_JDBC_USER=db_user
+          - ATL_JDBC_PASSWORD=${MYSQL_PASSWORD}
+          - JVM_MINIMUM_MEMORY=2048m
+          - JVM_MAXIMUM_MEMORY=4096m
+        links:
+          - database
+        volumes:
+          - jira-data:/var/atlassian/jira
+      confluence:
+        image: atlassian/confluence:8.9.5-ubuntu-jdk17
+        expose:
+          - 8090
+        environment:
+          - VIRTUAL_HOST=${BASE_FQDN}
+          - VIRTUAL_PATH=/confluence
+          - VIRTUAL_PORT=8090
+          - CERT_NAME=default
+          - ATL_PROXY_NAME=${BASE_FQDN}
+          - ATL_PROXY_PORT=443
+          - ATL_TOMCAT_SCHEME=https
+          - ATL_TOMCAT_SECURE=false
+          - ATL_TOMCAT_CONTEXTPATH=confluence
+        restart: always
+        links:
+          - database
+        volumes:
+          - confluence-data:/var/atlassian/confluence
+      bitbucket:
+        image: atlassian/bitbucket:8-ubuntu-jdk17
+        restart: always
+        environment:
+         - SERVER_PROXY_NAME=bitbucket.internal
+         - SERVER_PROXY_PORT=80
+         - SERVER_SCHEME=http
+        links:
+          - database
+        volumes:
+          - bitbucket-data:/var/atlassian/application-data/bitbucket
+      database:
+        image: postgres:9.4
+        restart: always
+        volumes:
+          - database-data:/var/lib/postgresql/data
+      nginx:
+        image: nginx
+        restart: always
+        ports:
+          - "80:80"
+        links:
+          - jira
+          - confluence
+          - bitbucket
+        volumes:
+        - ./:/src
+        command: ./src/scripts/run_nginx.sh
+        environment:
+        - DOMAIN
+    volumes:
+      jira-data:
+      confluence-data:
+      bitbucket-data:
+      database-data:
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: nginx
+  name: nginx-cm0
