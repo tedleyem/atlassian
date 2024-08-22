@@ -1,1 +1,7 @@
 test
+.terraform
+*/.terraform
+terraform.tfstate*
+terraform.tfvars
+.terraform.lock.hcl
+terraform/.terraform.tfstate.lock.info

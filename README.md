@@ -17,3 +17,17 @@ platforms.
 With:
 - Postgres `9.4`
 - Nginx `latest`
+
+
+### Required automation tools
+- Terraform `1.9.5` # TFENV_ARCH=amd64 tfenv install 1.1.9
+
+
+## Terraform Outputs
+
+| Name | Description |
+|------|-------------|
+| db_endpoint | Database endpoint |
+| bitbucket_endpoint | Bitbucket static endpoint |
+| jira_endpoint | Jira static endpoint |
+| confluence_endpoint | Confluence static endpoint |

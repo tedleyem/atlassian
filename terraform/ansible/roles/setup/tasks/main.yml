@@ -1,0 +1,53 @@
+--- #
+- name: Gather EC2 facts
+  ec2_metadata_facts:
+- name: Detach ENI in case it was previously attached
+  ec2_eni:
+    eni_id: "{{ eni_id }}"
+    instance_id: None
+    attached: False
+    force_detach: True
+- name: Attach ENI to the current instance
+  ec2_eni:
+    eni_id: "{{ eni_id }}"
+    instance_id: "{{ ansible_ec2_instance_id }}"
+    attached: True
+    device_index: 1
+- name: Restart ENI interface
+  service:
+    name: ec2net-ifup@eth1
+    state: restarted
+- name: Detach EBS volume from previous instance
+  ec2_vol:
+    id: "{{ ebs_id }}"
+    instance: None
+- name: Attach EBS volume to the current instance
+  ec2_vol:
+    id: "{{ ebs_id }}"
+    instance: "{{ ansible_ec2_instance_id }}"
+  register: volume
+- name: Make sure volume has file system
+  filesystem:
+    dev: "{{ volume.device }}"
+    fstype: xfs
+- name: Mount the volume
+  mount:
+    path: "{{ mount_point }}"
+    src: "{{ volume.device }}"
+    fstype: xfs
+    state: mounted
+- name: Wait for database to come up
+  wait_for:
+    host: "{{ db_host }}"
+    port: "{{ db_port }}"
+    delay: 60
+    timeout: 600
+- name: Make sure database exists on the DB server
+  postgresql_db:
+    name: "{{ db_name }}"
+    encoding: UTF-8
+    state: present
+    login_host: "{{ db_host }}"
+    port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
